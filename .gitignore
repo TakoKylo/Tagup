@@ -1,0 +1,14 @@
+# Build output
+bin/
+obj/
+
+# Runtime config generated next to the deployed DLL
+tagup_config.json
+
+# IDE / OS
+.vs/
+*.user
+*.suo
+.idea/
+Thumbs.db
+desktop.ini
