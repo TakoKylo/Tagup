@@ -45,6 +45,10 @@ namespace Tagup {
         /// <summary>The possessor keeps the puck only while it stays within this horizontal distance of them.</summary>
         internal static float PossessionRadius = 2.5f;
 
+        /// <summary>A slow puck within this horizontal distance of a lone skater's blade is under their
+        /// control even with no stick contact this instant (slow stickhandle / fake).</summary>
+        internal static float ControlRadius = 1.5f;
+
         /// <summary>Puck faster than this (units/s) is a shot/loose puck in flight, not under control.</summary>
         internal static float ControlSpeed = 14f;
 
@@ -117,27 +121,82 @@ namespace Tagup {
 
         /// <summary>
         /// The team actually controlling the puck this frame, or None when it is loose / contested.
-        /// The sticky last-real-toucher only keeps possession while they (a) touched it recently, (b)
-        /// stay within <see cref="PossessionRadius"/> of it, and (c) the puck is slow enough to be
-        /// under control. A shot, dump, or hard pass fails (b)/(c) the instant it leaves the stick, so
-        /// it is contested until someone corrals it — and a puck that has rolled away to nobody is
-        /// nobody's.
+        /// Two ways to control it, both gated by speed (a shot/dump/hard pass in flight is nobody's):
+        ///   1. The sticky last-real-toucher, while they touched it recently AND it is still within
+        ///      <see cref="PossessionRadius"/> of them.
+        ///   2. Proximity fallback: a slow puck hugging one skater's blade (within
+        ///      <see cref="ControlRadius"/>, with no opponent equally close) is under their control
+        ///      even with no stick contact this instant — a slow stickhandle / fake move still counts.
+        /// The fallback keys off whoever is NEAREST the puck, so it never revives a far-away dumper:
+        /// a dump-in is still loose at the line, and a goal-mouth scramble is still contested (None).
         /// </summary>
         internal static PlayerTeam Resolve(Vector3 puckPos, float puckSpeed, out string steamId) {
             steamId = "";
-            if (string.IsNullOrEmpty(LastSteamId)) return PlayerTeam.None;
-            if (MsSinceLastTouch > MaxPossessionMs) return PlayerTeam.None;   // not touched recently
             if (puckSpeed > ControlSpeed) return PlayerTeam.None;             // shot / loose puck in flight
 
-            Player p = PlayerManager.Instance != null ? PlayerManager.Instance.GetPlayerBySteamId(LastSteamId) : null;
-            if (!p || !p.PlayerBody || !p.PlayerBody.Rigidbody) return PlayerTeam.None;
+            // 1. Sticky last real-toucher, still recent and still near them.
+            if (!string.IsNullOrEmpty(LastSteamId) && MsSinceLastTouch <= MaxPossessionMs) {
+                Player p = PlayerManager.Instance != null ? PlayerManager.Instance.GetPlayerBySteamId(LastSteamId) : null;
+                if (p && p.PlayerBody && p.PlayerBody.Rigidbody) {
+                    Vector3 body = p.PlayerBody.Rigidbody.position;
+                    float dx = body.x - puckPos.x, dz = body.z - puckPos.z;
+                    if (dx * dx + dz * dz <= PossessionRadius * PossessionRadius) {
+                        steamId = LastSteamId;
+                        return LastTeam;
+                    }
+                }
+            }
 
-            Vector3 body = p.PlayerBody.Rigidbody.position;
-            float dx = body.x - puckPos.x, dz = body.z - puckPos.z;
-            if (dx * dx + dz * dz > PossessionRadius * PossessionRadius) return PlayerTeam.None; // puck got away
+            // 2. Proximity fallback (handles slow stickhandle / fake with no qualifying stick contact).
+            return ResolveByProximity(puckPos, out steamId);
+        }
 
-            steamId = LastSteamId;
-            return LastTeam;
+        // The nearest non-goalie skater whose blade is within ControlRadius of the puck owns it — unless
+        // an opponent is also within reach, in which case it is a contested battle and belongs to nobody.
+        private static PlayerTeam ResolveByProximity(Vector3 puckPos, out string steamId) {
+            steamId = "";
+            // Proximity = a carry on the ice. An airborne puck (flip-in / bounce) near a skater is not
+            // under control, so it stays loose — keeps a flip-in over the line from tagging like a carry.
+            if (puckPos.y > PuckOnIceHeight) return PlayerTeam.None;
+            PlayerManager pm = PlayerManager.Instance;
+            if (pm == null) return PlayerTeam.None;
+
+            float r2 = ControlRadius * ControlRadius;
+            List<Player> players = pm.GetSpawnedPlayers();
+            if (players == null) return PlayerTeam.None;
+
+            Player nearest = null;
+            float nearestD2 = float.MaxValue;
+            foreach (Player p in players) {
+                if (!p || p.Role == PlayerRole.Goalie) continue;
+                if (!TryControlPos(p, out Vector3 sp)) continue;
+                float dx = sp.x - puckPos.x, dz = sp.z - puckPos.z;
+                float d2 = dx * dx + dz * dz;
+                if (d2 < nearestD2) { nearestD2 = d2; nearest = p; }
+            }
+            if (nearest == null || nearestD2 > r2) return PlayerTeam.None;
+
+            PlayerTeam team = nearest.Team;
+            foreach (Player p in players) {
+                if (!p || p == nearest || p.Role == PlayerRole.Goalie || p.Team == team) continue;
+                if (!TryControlPos(p, out Vector3 sp)) continue;
+                float dx = sp.x - puckPos.x, dz = sp.z - puckPos.z;
+                if (dx * dx + dz * dz <= r2) return PlayerTeam.None;   // an opponent is contesting it
+            }
+
+            string id = Id(nearest);
+            if (id == null) return PlayerTeam.None;
+            steamId = id;
+            return team;
+        }
+
+        // The point we measure puck distance from: the stick blade (so stickhandling counts), falling
+        // back to the body when the stick is not available.
+        private static bool TryControlPos(Player player, out Vector3 pos) {
+            pos = default;
+            if (player.Stick) { pos = player.Stick.BladeHandlePosition; return true; }
+            if (player.PlayerBody && player.PlayerBody.Rigidbody) { pos = player.PlayerBody.Rigidbody.position; return true; }
+            return false;
         }
 
         internal static void Clear() {

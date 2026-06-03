@@ -8,7 +8,7 @@ namespace Tagup {
         internal const string MOD_NAME = "Tagup";
 
         /// <summary>Mod version, surfaced in logs.</summary>
-        internal const string MOD_VERSION = "0.1.0";
+        internal const string MOD_VERSION = "0.2.0";
 
         /// <summary>Radius of the puck (from the game's Codebase.Constants.PUCK_RADIUS).</summary>
         internal const float PUCK_RADIUS = 0.14f;

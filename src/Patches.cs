@@ -93,11 +93,12 @@ namespace Tagup {
                     if (!puck) return;
 
                     Vector3 puckPos = puck.Rigidbody.position;
+                    float puckSpeed = puck.Rigidbody.linearVelocity.magnitude;
                     HalfSide side = NetGeometry.GetSide(puckPos.z, Cfg);
                     // Who actually controls the puck right now (near it + slow enough), or None if it is
                     // loose / in flight — a dump or shot is contested until someone corrals it.
-                    PlayerTeam possessor = Possession.Resolve(puckPos, puck.Rigidbody.linearVelocity.magnitude, out string possessorId);
-                    TagupState.OnFrame(possessor, possessorId, side, Announce);
+                    PlayerTeam possessor = Possession.Resolve(puckPos, puckSpeed, out string possessorId);
+                    TagupState.OnFrame(possessor, possessorId, side, puckSpeed, Announce);
                 }
                 catch (Exception ex) {
                     Log.Error("PhysicsManager.Update patch: " + ex);

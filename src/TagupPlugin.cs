@@ -30,7 +30,10 @@ namespace Tagup {
                 Possession.MaxTippedMs = Cfg.MaxTippedMilliseconds;
                 Possession.PuckOnIceHeight = Cfg.PuckOnIceHeight;
                 Possession.PossessionRadius = Cfg.PossessionRadius;
+                Possession.ControlRadius = Cfg.ControlRadius;
                 Possession.ControlSpeed = Cfg.ControlSpeed;
+                TagupState.TurnoverControlSeconds = Cfg.TurnoverControlSeconds;
+                TagupState.EntryGraceSeconds = Cfg.EntryGraceSeconds;
 
                 _harmony.PatchAll(Assembly.GetExecutingAssembly());
                 _patched = true;

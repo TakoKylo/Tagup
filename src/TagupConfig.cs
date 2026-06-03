@@ -44,6 +44,28 @@ namespace Tagup {
         /// </summary>
         public float ControlSpeed = 14f;
 
+        /// <summary>
+        /// A slow puck within this horizontal distance (units) of a lone skater's blade counts as
+        /// under their control even when their stick is not touching it this instant — so a slow
+        /// stickhandle or fake move across the blue line still registers as a controlled entry. If an
+        /// opponent is also within reach it is a contested battle (nobody's). ~one stick blade's reach.
+        /// </summary>
+        public float ControlRadius = 1.5f;
+
+        /// <summary>
+        /// Seconds a new team must keep control before it counts as a turnover. Stops a tip / deflection
+        /// / ghost touch on the way to the net from briefly registering as the other team and stealing
+        /// the goal from the shooter. Keep small (a real steal lasts far longer than a deflection).
+        /// </summary>
+        public float TurnoverControlSeconds = 0.15f;
+
+        /// <summary>
+        /// Seconds a carry survives a brief stick-contact gap before the puck is considered loose, so
+        /// the controlled-entry check is not fooled by a one-frame gap mid-dangle. A puck in flight
+        /// (a shot/dump) ends the carry immediately regardless of this.
+        /// </summary>
+        public float EntryGraceSeconds = 0.4f;
+
         /// <summary>Yaw applied to the neutral opening faceoff formation (90 = quarter turn).</summary>
         public float FaceoffRotationDegrees = 90f;
 
