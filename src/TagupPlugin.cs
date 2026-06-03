@@ -27,6 +27,10 @@ namespace Tagup {
 
                 Cfg = TagupConfig.Load(ConfigPath());
                 Possession.MaxPossessionMs = Cfg.MaxPossessionMilliseconds;
+                Possession.MaxTippedMs = Cfg.MaxTippedMilliseconds;
+                Possession.PuckOnIceHeight = Cfg.PuckOnIceHeight;
+                Possession.PossessionRadius = Cfg.PossessionRadius;
+                Possession.ControlSpeed = Cfg.ControlSpeed;
 
                 _harmony.PatchAll(Assembly.GetExecutingAssembly());
                 _patched = true;
@@ -53,6 +57,7 @@ namespace Tagup {
                 NetGeometry.Restore();
                 TagupState.Reset();
                 Possession.Clear();
+                TagupGame.Reset();   // drop any queued first-to-N game-over so re-enable starts clean
 
                 Log.Info("Disabled.");
                 return true;

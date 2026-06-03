@@ -10,11 +10,15 @@ namespace Tagup {
         private static bool _ending;          // a game-over is queued or in progress
         private static float _gameOverAt;     // Time.unscaledTime to fire game-over, 0 = none
 
-        /// <summary>Reset when a fresh game starts (Warmup/PreGame) so the next game can end too.</summary>
-        internal static void OnNewGame() {
+        /// <summary>Clear any queued game-over. Used on a fresh game and on mod disable so a stale
+        /// queued game-over can never fire after a disable / re-enable.</summary>
+        internal static void Reset() {
             _ending = false;
             _gameOverAt = 0f;
         }
+
+        /// <summary>Reset when a fresh game starts (Warmup/PreGame) so the next game can end too.</summary>
+        internal static void OnNewGame() => Reset();
 
         /// <summary>
         /// Called when a score phase begins. If the just-scored team reached the win score, queue
@@ -39,7 +43,7 @@ namespace Tagup {
                 // gameResult was refreshed by the game mode's UpdateGameResult() on the goal, so the
                 // game-over screen reads the correct winner. We only need to switch phases.
                 GameManager.Instance.Server_SetGameState(GamePhase.GameOver, cfg.GameOverSeconds);
-                Log.Info("First to " + cfg.WinScore + " reached — game over.");
+                Log.Info("First to " + cfg.WinScore + " reached, game over.");
             }
         }
     }

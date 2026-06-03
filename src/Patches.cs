@@ -25,32 +25,47 @@ namespace Tagup {
             collision != null && collision.gameObject ? collision.gameObject.GetComponent<Stick>() : null;
 
         // ----------------------------------------------------------------- Possession tracking
+        // Resolve the non-goalie stick player on a puck collision (goalies never "possess" for tag-up
+        // purposes). Returns null for anything else. Guarded by the callers so an exception can never
+        // escape into the physics callback.
+        private static Player SkaterOnPuck(Collision collision) {
+            Stick stick = GetStick(collision);
+            return (stick && stick.Player && stick.Player.Role != PlayerRole.Goalie) ? stick.Player : null;
+        }
+
         [HarmonyPatch(typeof(Puck), "OnCollisionEnter")]
         internal static class Puck_OnCollisionEnter {
             private static void Postfix(Collision collision) {
                 if (!Srv.IsServer) return;
-                Stick stick = GetStick(collision);
-                if (stick && stick.Player && stick.Player.Role != PlayerRole.Goalie)
-                    Possession.OnStickContact(stick.Player);
+                try {
+                    Player skater = SkaterOnPuck(collision);
+                    if (skater) Possession.OnContactBegin(skater);
+                }
+                catch (Exception ex) { Log.Error("Puck enter patch: " + ex); }
             }
         }
 
         [HarmonyPatch(typeof(Puck), "OnCollisionStay")]
         internal static class Puck_OnCollisionStay {
-            private static void Postfix(Collision collision) {
-                if (!Srv.IsServer) return;
-                Stick stick = GetStick(collision);
-                if (stick && stick.Player && stick.Player.Role != PlayerRole.Goalie)
-                    Possession.OnStickContact(stick.Player);
+            private static void Postfix(Puck __instance, Collision collision) {
+                if (!Srv.IsServer || !__instance) return;
+                try {
+                    Player skater = SkaterOnPuck(collision);
+                    if (skater) Possession.OnContact(skater, __instance.Rigidbody.position.y);
+                }
+                catch (Exception ex) { Log.Error("Puck stay patch: " + ex); }
             }
         }
 
         [HarmonyPatch(typeof(Puck), "OnCollisionExit")]
         internal static class Puck_OnCollisionExit {
-            private static void Postfix(Collision collision) {
-                if (!Srv.IsServer) return;
-                Stick stick = GetStick(collision);
-                if (stick && stick.Player) Possession.OnStickExit(stick.Player);
+            private static void Postfix(Puck __instance, Collision collision) {
+                if (!Srv.IsServer || !__instance) return;
+                try {
+                    Player skater = SkaterOnPuck(collision);
+                    if (skater) Possession.OnContact(skater, __instance.Rigidbody.position.y);
+                }
+                catch (Exception ex) { Log.Error("Puck exit patch: " + ex); }
             }
         }
 
@@ -77,14 +92,12 @@ namespace Tagup {
                     Puck puck = PuckManager.Instance.GetPuck();
                     if (!puck) return;
 
-                    HalfSide side = NetGeometry.GetSide(puck.Rigidbody.position.z, Cfg);
-                    // "Carried" = the puck is on a stick now, or was within the tolerance window (covers
-                    // stickhandling micro-gaps). A puck shot/dumped from distance fails this, so it tags nobody.
-                    bool puckCarried = puck.IsTouchingStick || Possession.MsSinceLastTouch <= Cfg.CarryToleranceMilliseconds;
-                    string possessorId = Possession.GetPossessorSteamId(Cfg.MinPossessionMilliseconds, Cfg.MaxPossessionMilliseconds);
-                    PlayerTeam possessor = Possession.GetPossessorTeam(Cfg.MinPossessionMilliseconds, Cfg.MaxPossessionMilliseconds);
-
-                    TagupState.OnFrame(possessor, possessorId, side, puckCarried, Announce);
+                    Vector3 puckPos = puck.Rigidbody.position;
+                    HalfSide side = NetGeometry.GetSide(puckPos.z, Cfg);
+                    // Who actually controls the puck right now (near it + slow enough), or None if it is
+                    // loose / in flight — a dump or shot is contested until someone corrals it.
+                    PlayerTeam possessor = Possession.Resolve(puckPos, puck.Rigidbody.linearVelocity.magnitude, out string possessorId);
+                    TagupState.OnFrame(possessor, possessorId, side, Announce);
                 }
                 catch (Exception ex) {
                     Log.Error("PhysicsManager.Update patch: " + ex);
@@ -107,8 +120,9 @@ namespace Tagup {
                     // A shot/dump in (or a goal with no clear possessor) tags nobody — wave it off and
                     // reset to neutral so BOTH teams have to take it in.
                     if (scorer == PlayerTeam.None || !TagupState.IsEligible(scorer)) {
-                        Announce("NO GOAL — the puck wasn't carried over the line. Take it in to score.", true);
+                        Announce("NO GOAL: the puck wasn't carried over the line. Take it in to score.", true);
                         TagupState.Reset();
+                        Possession.Clear();   // neutral: nobody owns the puck until a fresh touch
                         ResetPuckToCenter(puck);
                         return false; // cancel the goal; play continues
                     }

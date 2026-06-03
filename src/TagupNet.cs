@@ -15,7 +15,7 @@ namespace Tagup {
         private const string MSG = "tagup_hud";
 
         // Latest values received by a (remote) client; read by the HUD overlay.
-        internal static string ClientPhase = "TAG UP TO SCORE";
+        internal static string ClientPhase = "CONTESTED";
         internal static string ClientTime = "FIRST TO 3";
 
         private static bool _clientRegistered;

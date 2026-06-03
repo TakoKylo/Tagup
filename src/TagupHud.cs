@@ -7,11 +7,16 @@ namespace Tagup {
     /// <summary>Builds the two HUD strings (phase + time) from the current tag-up state.</summary>
     internal static class TagupStatus {
         internal static (string phase, string time) Build(TagupConfig cfg) {
+            // Tagged up (live), holding the puck (PUCK outside the line / INVALID TAG inside without a
+            // valid entry), or loose (CONTESTED).
             string phase;
-            if (TagupState.BlueEligible && !TagupState.RedEligible) phase = "BLUE — TAGGED UP";
-            else if (TagupState.RedEligible && !TagupState.BlueEligible) phase = "RED — TAGGED UP";
-            else if (TagupState.BlueEligible || TagupState.RedEligible) phase = "TAGGED UP";
-            else phase = "TAG UP TO SCORE";
+            if (TagupState.BlueEligible) phase = "BLUE TAG";
+            else if (TagupState.RedEligible) phase = "RED TAG";
+            else if (TagupState.HudPossessor == PlayerTeam.Blue)
+                phase = TagupState.HudSide == HalfSide.ScoringHalf ? "INVALID TAG" : "BLUE PUCK";
+            else if (TagupState.HudPossessor == PlayerTeam.Red)
+                phase = TagupState.HudSide == HalfSide.ScoringHalf ? "INVALID TAG" : "RED PUCK";
+            else phase = "CONTESTED";
 
             string time = cfg.WinScore > 0 ? "FIRST TO " + cfg.WinScore : "HALF COURT";
             return (phase, time);

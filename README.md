@@ -4,15 +4,21 @@ A server-side game-mode mod for **Puck** (build 897) that turns the rink into a
 **half-court / make-it-take-it** sheet:
 
 - **One live net.** The net on the non-scoring side is removed; both teams attack the same net.
-- **Tag up to score.** A goal only counts if the scoring team **carried the puck across the blue
-  line on a stick** — a puck shot or dumped in tags nobody, and both teams have to take it in. The
-  puck **leaving the scoring half un-tags** the team; carry it back in to re-tag.
+- **Tag up to score.** A goal only counts if the scoring team **carries the puck across the blue line
+  while in possession** (having first taken it out past the line). Possession means actually
+  controlling the puck (near it, not flying away), so a puck that crosses the line **loose, as a dump
+  or shot, tags nobody**. Just grabbing a loose puck inside the zone does not count either: the team
+  has to take it back out and bring it in under control. The puck **leaving the scoring half un-tags**
+  the team.
 - **Clear after a turnover.** When the puck changes hands, the new team must **carry it back out
   past the blue line themselves**, then bring it back in, before they can score.
 - **First to N (default 3).** The period clock is **frozen**; the game ends when a team reaches the
   win score.
-- **Custom HUD.** During play the frozen clock is replaced with the tag-up status + "FIRST TO N";
-  the team score boxes show the race. (Overlays the vanilla scoreboard, like the OpenWorld mod.)
+- **Custom HUD.** During play the frozen clock is replaced with the live status: `BLUE PUCK` / `RED
+  PUCK` (that team has it outside the line), `CONTESTED` (loose puck), `INVALID TAG` (a team has it in
+  the zone but didn't enter with possession), and `BLUE TAG` / `RED TAG` (that team is live to score).
+  The second line shows "FIRST TO N"; the team score boxes show the race. (Overlays the vanilla
+  scoreboard, like the OpenWorld mod.)
 - **Possession restart.** After a goal the team that **scored defends** — they spawn just inside
   the blue line with the net behind them. The team that was **scored on attacks from the default
   (centre) faceoff spots** with the puck on the default centre dot, so their centre wins it. The
@@ -69,9 +75,11 @@ On first enable a `tagup_config.json` is written next to the DLL. Defaults:
 | `ActiveNet` | `"Blue"` | Net that stays in play: `"Blue"` (+Z) or `"Red"` (−Z). |
 | `TagLineZ` | `13.25` | \|Z\| of the tag-up / clear blue line. |
 | `LineMargin` | `0.3` | Hysteresis band around the line. |
-| `MinPossessionMilliseconds` | `250` | Continuous stick contact before you "possess". |
-| `MaxPossessionMilliseconds` | `500` | Time after last contact before possession is lost. |
-| `CarryToleranceMilliseconds` | `150` | Max time-in-flight for a line crossing to still count as a carry (vs a shot). |
+| `MaxPossessionMilliseconds` | `500` | Time after last contact before possession is lost (a fresh touch on return). |
+| `MaxTippedMilliseconds` | `80` | Contact shorter than this (puck on the ice) is a tip/deflection, ignored for possession. |
+| `PuckOnIceHeight` | `0.25` | Puck centre above this is airborne, so any contact with it is a tip (not control). |
+| `PossessionRadius` | `2.5` | Possessor keeps the puck only while it stays within this distance of them (else it's loose). |
+| `ControlSpeed` | `14` | Puck faster than this (max 30) is a shot/loose puck in flight, owned by nobody. |
 | `FaceoffRotationDegrees` | `90` | Yaw of the neutral opening faceoff formation. |
 | `FaceoffDefenseFrontset` | `2` | Units the defending (scoring) team spawns past the blue line. |
 | `FaceoffXSpacing` | `3.5` | Horizontal spacing between defenders in the faceoff row. |

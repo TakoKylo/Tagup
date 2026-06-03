@@ -17,17 +17,32 @@ namespace Tagup {
         /// <summary>Hysteresis band (units) around the line when deciding which half the puck is in.</summary>
         public float LineMargin = 0.3f;
 
-        /// <summary>Continuous stick contact (ms) before a single toucher counts as possessing.</summary>
-        public int MinPossessionMilliseconds = 250;
-
         /// <summary>Time since last stick contact (ms) after which possession is considered lost.</summary>
         public int MaxPossessionMilliseconds = 500;
 
         /// <summary>
-        /// Max ms since the last stick touch for the puck to still count as "carried" when it
-        /// crosses the line. A puck in flight longer than this is a shot/dump and tags nobody.
+        /// A stick contact shorter than this (ms), with the puck on the ice, is treated as a TIP /
+        /// deflection and ignored for possession — only longer contact counts as control. This is
+        /// what keeps a defender's glance off the puck from registering as a possession / turnover.
         /// </summary>
-        public int CarryToleranceMilliseconds = 150;
+        public int MaxTippedMilliseconds = 80;
+
+        /// <summary>Puck centre above this height is airborne, so any contact with it is a tip (not control).</summary>
+        public float PuckOnIceHeight = 0.25f;
+
+        /// <summary>
+        /// The possessor keeps the puck only while it stays within this horizontal distance (units) of
+        /// them. Once the puck gets farther — a shot, dump, or long pass — possession is loose
+        /// (contested) until a player corrals it again. ~stick reach, so stickhandling still counts.
+        /// </summary>
+        public float PossessionRadius = 2.5f;
+
+        /// <summary>
+        /// Puck moving faster than this (units/s) is a shot / loose puck in flight, not under control,
+        /// so it belongs to nobody. Keep above skating speed so a fast carry still counts; below a
+        /// typical dump-in. (Puck max speed is 30.)
+        /// </summary>
+        public float ControlSpeed = 14f;
 
         /// <summary>Yaw applied to the neutral opening faceoff formation (90 = quarter turn).</summary>
         public float FaceoffRotationDegrees = 90f;
