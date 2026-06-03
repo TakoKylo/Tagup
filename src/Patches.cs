@@ -108,6 +108,9 @@ namespace Tagup {
         // ------------------------------------ Scoring: enforce tag-up + fix attribution (one net)
         [HarmonyPatch(typeof(BaseGameMode<BaseGameModeConfig>), "ScoreGoal")]
         internal static class BaseGameMode_ScoreGoal {
+            // Throttle the "no goal" chat so a puck rattling in and out of the net does not spam it.
+            private static float _lastWaveOff = -10f;
+
             // byTeam / goalPlayer are taken by ref so we can correct the engine's attribution:
             // both teams shoot the same net, so the engine would always credit the wrong side.
             private static bool Prefix(ref PlayerTeam byTeam, ref Player goalPlayer,
@@ -116,15 +119,18 @@ namespace Tagup {
                 try {
                     PlayerTeam scorer = TagupState.LastPossessionTeam;
 
-                    // A goal only counts if the team that carried the puck over the line is tagged up.
-                    // A shot/dump in (or a goal with no clear possessor) tags nobody — wave it off and
-                    // reset to neutral so BOTH teams have to take it in.
+                    // A goal only counts if the team in possession is tagged up. A shot/dump in (or a
+                    // goal with no clear possessor) tags nobody: wave it off but LEAVE THE PUCK WHERE IT
+                    // IS — resetting it to centre would hand the offending team a free breakout. They
+                    // have to dig it back out and carry it in.
                     if (scorer == PlayerTeam.None || !TagupState.IsEligible(scorer)) {
-                        Announce("NO GOAL: the puck wasn't carried over the line. Take it in to score.", true);
+                        if (Time.unscaledTime - _lastWaveOff > 3f) {
+                            Announce("NO GOAL: not tagged up. Take it back out and carry it in to score.", true);
+                            _lastWaveOff = Time.unscaledTime;
+                        }
                         TagupState.Reset();
                         Possession.Clear();   // neutral: nobody owns the puck until a fresh touch
-                        ResetPuckToCenter(puck);
-                        return false; // cancel the goal; play continues
+                        return false; // no goal; play continues with the puck left where it landed
                     }
 
                     // Legal goal: credit the correct team and scorer. OnGoalScored keys the score
@@ -148,13 +154,6 @@ namespace Tagup {
                 if (string.IsNullOrEmpty(id) || PlayerManager.Instance == null) return null;
                 Player p = PlayerManager.Instance.GetPlayerBySteamId(id);
                 return (p && p.Team == team) ? p : null;
-            }
-
-            private static void ResetPuckToCenter(Puck puck) {
-                if (!puck) return;
-                puck.Rigidbody.position = new Vector3(0f, puck.Rigidbody.position.y, Cfg.FaceoffZ);
-                puck.Rigidbody.linearVelocity = Vector3.zero;
-                puck.Rigidbody.angularVelocity = Vector3.zero;
             }
         }
 

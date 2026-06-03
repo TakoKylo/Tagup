@@ -56,7 +56,7 @@ namespace Tagup {
         /// <summary>|Z| of the goalie's spot, just in front of the kept net (~40).</summary>
         public float GoalieZ = 38f;
 
-        /// <summary>Neutral puck Z used when a goal is waved off (back-court).</summary>
+        /// <summary>Z of the centre dot the neutral opening faceoff formation is rotated around.</summary>
         public float FaceoffZ = 0f;
 
         /// <summary>Broadcast chat messages for tag-up / turnover / waved-off events.</summary>

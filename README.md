@@ -26,8 +26,9 @@ A server-side game-mode mod for **Puck** (build 897) that turns the rink into a
 - **Optional goalie.** Players may take the goalie role; any goalie is placed in the kept net's
   crease.
 
-Illegal goals (scoring without being tagged up) are **waved off** and the puck is turned over to
-the other team; play continues.
+Illegal goals (scoring without being tagged up) are **waved off** with no point, and the puck is
+**left where it landed** (no centre reset, so the offending team gets no free breakout); play
+continues and a team has to take it back out and carry it in to score.
 
 ## How it works (implementation)
 
@@ -84,7 +85,7 @@ On first enable a `tagup_config.json` is written next to the DLL. Defaults:
 | `FaceoffDefenseFrontset` | `2` | Units the defending (scoring) team spawns past the blue line. |
 | `FaceoffXSpacing` | `3.5` | Horizontal spacing between defenders in the faceoff row. |
 | `GoalieZ` | `38` | \|Z\| of the goalie spot, just in front of the kept net. |
-| `FaceoffZ` | `0` | Neutral puck Z used when a goal is waved off (back court). |
+| `FaceoffZ` | `0` | Z of the centre dot the neutral opening faceoff is rotated around. |
 | `Announce` | `true` | Broadcast tag-up / waved-off chat messages. |
 | `DisableGoalie` | `false` | Block claiming the goalie position. Off so the kept net can have a goalie. |
 | `FreezeTimer` | `true` | Freeze the period clock; game ends on score, not time. |
