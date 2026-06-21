@@ -107,7 +107,11 @@ namespace Tagup {
         }
 
         // ------------------------------------ Scoring: enforce tag-up + fix attribution (one net)
+        // Run AFTER Ruleset's ScoreGoal patch (if present) so its rule checks (offside / high-stick /
+        // penalty / goalie-int) evaluate first; Tagup then applies its tag-up wave-off + one-net
+        // attribution only to goals Ruleset already allowed. No-op when Ruleset is absent.
         [HarmonyPatch(typeof(BaseGameMode<BaseGameModeConfig>), "ScoreGoal")]
+        [HarmonyAfter(Constants.RULESET_HARMONY_ID)]
         internal static class BaseGameMode_ScoreGoal {
             // Throttle the "no goal" chat so a puck rattling in and out of the net does not spam it.
             private static float _lastWaveOff = -10f;
@@ -138,8 +142,11 @@ namespace Tagup {
                     // increment + score phase off byTeam, so this is all that is needed.
                     byTeam = scorer;
                     Faceoff.LastScoringTeam = scorer; // drives the next restart (conceding team attacks)
-                    Player realScorer = ResolveScorer(scorer);
-                    if (realScorer) goalPlayer = realScorer;
+                    // Always take Tagup's resolved scorer. If it can't be resolved (the scorer left or
+                    // switched teams before the puck crossed) this is null, which the engine handles
+                    // (goalPlayer?.NetworkObject) — better than the engine's default, which in a one-net
+                    // mod is usually a WRONG-side player. Same reason the assists below are nulled.
+                    goalPlayer = ResolveScorer(scorer);
                     assistPlayer = null;        // engine assists come from the wrong-side collisions
                     secondAssistPlayer = null;
                     return true;
@@ -204,7 +211,12 @@ namespace Tagup {
         }
 
         // -------------------------- Place each skater for the post-goal restart as they spawn
+        // Run AFTER Ruleset's own faceoff-placement postfix (if present) so Tagup's half-court
+        // formation always wins the last-writer-wins teleport race, regardless of plugin load order.
+        // (For a fully clean faceoff also set Ruleset's UseCustomFaceoff=false so it does not move the
+        // puck off-centre — Tagup does not patch puck spawning.)
         [HarmonyPatch(typeof(Player), nameof(Player.Server_SpawnCharacter))]
+        [HarmonyAfter(Constants.RULESET_HARMONY_ID)]
         internal static class Player_Server_SpawnCharacter {
             private static void Postfix(Player __instance) {
                 try {
@@ -229,14 +241,28 @@ namespace Tagup {
             }
         }
 
-        // ------------------------------ Freeze the period clock (game ends on score, not on time)
+        // ------------------------------ Period clock: end on score, not on time
+        // Standalone we just freeze the Play clock. Under the Ruleset mod (which reads and LOGS this
+        // same engine clock) freezing it would corrupt its time logs, so instead we let the clock
+        // tick down honestly and loop it back up before it can reach 0 — the period never times out,
+        // the game still ends on first-to-N, and Tick stays a real decreasing value for Ruleset.
         [HarmonyPatch(typeof(GameManager), "Server_Tick")]
         internal static class GameManager_Server_Tick {
             private static bool Prefix() {
-                if (!Srv.IsServer || !Cfg.FreezeTimer) return true;
-                // Freeze only the Play-phase period clock; faceoff / score / intermission countdowns
-                // still run so the game keeps flowing between whistles.
-                return GameManager.Instance == null || GameManager.Instance.Phase != GamePhase.Play;
+                if (!Srv.IsServer || !Cfg.FreezeTimer) return true;   // operator wants a normal timed game
+                // Only the Play-phase period clock; faceoff / score / intermission countdowns run on.
+                if (GameManager.Instance == null || GameManager.Instance.Phase != GamePhase.Play) return true;
+
+                if (!Compat.YieldClock(Cfg)) return false;            // standalone: freeze the Play clock
+
+                // Ruleset present: refill instead of freeze. Reset to the refill value just before the
+                // clock would hit 0 (and so trigger the engine's end-of-period), otherwise let it tick
+                // down normally. phase is left null so this never spams Ruleset's phase-change logs.
+                if (GameManager.Instance.Tick <= 1) {
+                    GameManager.Instance.Server_SetGameState(null, Mathf.Max(1, Cfg.PeriodRefillSeconds));
+                    return false;
+                }
+                return true;
             }
         }
     }

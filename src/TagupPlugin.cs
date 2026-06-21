@@ -38,6 +38,11 @@ namespace Tagup {
                 _harmony.PatchAll(Assembly.GetExecutingAssembly());
                 _patched = true;
 
+                if (Cfg.YieldToRuleset && Compat.RulesetPresent)
+                    Log.Info("Ruleset mod detected: not freezing the period clock (keeping its " +
+                             "phase/time logs accurate); looping it ~every " + Cfg.PeriodRefillSeconds +
+                             "s so the game still ends on first-to-" + Cfg.WinScore + ", not the clock.");
+
                 Log.Info($"Enabled. Active net: {Cfg.ActiveNet} (tag line |Z|={Cfg.TagLineZ}).");
                 return true;
             }

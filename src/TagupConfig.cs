@@ -90,6 +90,27 @@ namespace Tagup {
         /// <summary>Freeze the period clock so the game only ends on score (first to N).</summary>
         public bool FreezeTimer = true;
 
+        /// <summary>
+        /// When the oomtm450 Ruleset mod is also loaded on the server, do NOT freeze the period clock:
+        /// Ruleset reads and logs the same engine clock, so freezing it makes its phase / time logs
+        /// wrong. Tagup keeps its scoring AND its first-to-N win (that game-over is log-safe), so the
+        /// running clock can still cut a game short on time — set a long period on the server if you
+        /// want games decided by score (first to <see cref="WinScore"/>) rather than the clock. Set
+        /// false to keep Tagup's clock freeze even with Ruleset present (expect Ruleset's time logs to
+        /// be wrong). No effect if Ruleset is absent.
+        /// </summary>
+        public bool YieldToRuleset = true;
+
+        /// <summary>
+        /// Only used when yielding the clock to Ruleset (see <see cref="YieldToRuleset"/>): rather than
+        /// freezing the period clock, Tagup lets it count down and resets it to this many seconds just
+        /// before it would hit 0, so the period never times out and the game is decided by score. Keep
+        /// it comfortably longer than a typical game so the reset rarely happens — it is invisible
+        /// during Play (the HUD covers the clock) and only shows as the clock looping in stoppage
+        /// displays / logs. Must be &gt; 0.
+        /// </summary>
+        public int PeriodRefillSeconds = 1200;
+
         /// <summary>First team to this many goals wins. 0 disables the first-to-N ending.</summary>
         public int WinScore = 3;
 
